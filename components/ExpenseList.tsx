@@ -10,14 +10,32 @@ interface ExpenseListProps {
   onDelete: (id: string) => void;
 }
 
-export default function ExpenseList({ expenses, loading, onEdit, onDelete }: ExpenseListProps) {
+const categoryColors: Record<string, string> = {
+  Food: 'bg-gradient-to-r from-orange-400 to-orange-500',
+  Transport: 'bg-gradient-to-r from-blue-400 to-blue-500',
+  Entertainment: 'bg-gradient-to-r from-purple-400 to-purple-500',
+  Shopping: 'bg-gradient-to-r from-pink-400 to-pink-500',
+  Bills: 'bg-gradient-to-r from-red-400 to-red-500',
+  Healthcare: 'bg-gradient-to-r from-green-400 to-green-500',
+  Other: 'bg-gradient-to-r from-gray-400 to-gray-500',
+};
+
+export default function ExpenseList({
+  expenses,
+  loading,
+  onEdit,
+  onDelete,
+}: ExpenseListProps) {
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="animate-pulse space-y-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-20 bg-gray-200 rounded"></div>
-          ))}
+      <div className="glass-strong rounded-2xl p-8">
+        <div className="animate-pulse">
+          <div className="h-8 bg-white/10 rounded-lg w-1/3 mb-6"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-white/10 rounded-xl"></div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -25,10 +43,12 @@ export default function ExpenseList({ expenses, loading, onEdit, onDelete }: Exp
 
   if (expenses.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-        <div className="text-6xl mb-4">💸</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">No Expenses Found</h3>
-        <p className="text-gray-500">
+      <div className="glass-strong rounded-2xl p-12 text-center">
+        <div className="text-8xl mb-6 animate-float">📝</div>
+        <h3 className="text-2xl font-semibold text-white mb-3">
+          No expenses yet
+        </h3>
+        <p className="text-gray-400 text-lg">
           Start by adding your first expense using the form above!
         </p>
       </div>
@@ -36,95 +56,90 @@ export default function ExpenseList({ expenses, loading, onEdit, onDelete }: Exp
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold">Title</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold">Category</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold">Description</th>
-              <th className="px-6 py-4 text-right text-sm font-semibold">Amount</th>
-              <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {expenses.map((expense) => (
-              <tr key={expense._id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {format(new Date(expense.date), 'MMM dd, yyyy')}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {format(new Date(expense.date), 'EEEE')}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{expense.title}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                      expense.category === 'Food'
-                        ? 'bg-orange-100 text-orange-800'
-                        : expense.category === 'Transport'
-                        ? 'bg-blue-100 text-blue-800'
-                        : expense.category === 'Entertainment'
-                        ? 'bg-purple-100 text-purple-800'
-                        : expense.category === 'Shopping'
-                        ? 'bg-pink-100 text-pink-800'
-                        : expense.category === 'Bills'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : expense.category === 'Healthcare'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {expense.category}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-600 max-w-xs truncate">
-                    {expense.description || '-'}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <div className="text-lg font-bold text-gray-900">
-                    ${expense.amount.toFixed(2)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => onEdit(expense)}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(expense._id!)}
-                      className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="glass-strong rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 px-6 py-5 border-b border-white/10">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+          <span className="text-3xl">📋</span>
+          Expense List
+          <span className="glass-light px-3 py-1 rounded-full text-sm ml-2">
+            {expenses.length}
+          </span>
+        </h2>
       </div>
-
-      {/* Summary Footer */}
-      <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Showing <span className="font-semibold">{expenses.length}</span> expense
-            {expenses.length !== 1 ? 's' : ''}
+      
+      {/* Expense Items */}
+      <div className="divide-y divide-white/5">
+        {expenses.map((expense, index) => (
+          <div
+            key={expense._id}
+            className="p-5 hover:bg-white/5 transition-all duration-300 card-hover"
+            style={{animationDelay: `${index * 0.05}s`}}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white text-lg mb-1">
+                      {expense.title}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {expense.description || 'No description'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <span
+                      className={`px-4 py-2 rounded-full text-sm font-medium text-white shadow-lg ${categoryColors[expense.category] || categoryColors.Other}`}
+                    >
+                      {expense.category}
+                    </span>
+                    
+                    <div className="glass-light px-4 py-2 rounded-xl">
+                      <span className="text-gray-300 text-sm">
+                        {format(new Date(expense.date), 'MMM dd, yyyy')}
+                      </span>
+                    </div>
+                    
+                    <span className="text-2xl font-bold text-gradient">
+                      ${expense.amount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 ml-4">
+                <button
+                  onClick={() => onEdit(expense)}
+                  className="p-3 glass-light hover:bg-blue-500/30 rounded-xl transition-all duration-300 hover:scale-110"
+                  title="Edit expense"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => expense._id && onDelete(expense._id)}
+                  className="p-3 glass-light hover:bg-red-500/30 rounded-xl transition-all duration-300 hover:scale-110"
+                  title="Delete expense"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="text-lg font-bold text-gray-900">
-            Total: ${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+        ))}
+      </div>
+      
+      {/* Footer Summary */}
+      <div className="glass-light px-6 py-5 border-t border-white/10">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-300 font-medium text-lg">
+            Total: {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400">Total Amount</span>
+            <span className="text-3xl font-bold text-gradient glow-blue px-4 py-2 glass rounded-xl">
+              ${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+            </span>
           </div>
         </div>
       </div>

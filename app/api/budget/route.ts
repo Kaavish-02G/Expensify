@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Budget from '@/models/Budget';
+import { IBudget } from '@/types';
 
 // GET budget for a specific month
 export async function GET(request: NextRequest) {
@@ -21,7 +22,8 @@ export async function GET(request: NextRequest) {
 
     // If no budget exists for this month, return default
     if (!budget) {
-      budget = { month, monthlyBudget: 0 };
+      const defaultBudget: Partial<IBudget> = { month, monthlyBudget: 0 };
+      return NextResponse.json({ success: true, data: defaultBudget });
     }
 
     return NextResponse.json({ success: true, data: budget });

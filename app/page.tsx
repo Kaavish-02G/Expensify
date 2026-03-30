@@ -17,7 +17,6 @@ export default function Home() {
   const [filters, setFilters] = useState<ExpenseFilters>({});
   const [currentMonth, setCurrentMonth] = useState(format(new Date(), 'yyyy-MM'));
 
-  // Fetch expenses
   const fetchExpenses = async () => {
     try {
       setLoading(true);
@@ -38,7 +37,6 @@ export default function Home() {
     fetchExpenses();
   }, []);
 
-  // Apply filters
   useEffect(() => {
     let filtered = [...expenses];
 
@@ -95,20 +93,40 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <main className="min-h-screen relative overflow-hidden">
+      {/* Animated background orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute top-3/4 -right-20 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl animate-float" style={{animationDelay: '-3s'}}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-float" style={{animationDelay: '-5s'}}></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-white shadow-md">
+      <header className="glass-strong sticky top-0 z-50">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-            💰 Expensify
-          </h1>
-          <p className="text-gray-600 mt-2">Track, Analyze, and Manage Your Expenses</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-5xl font-bold text-gradient">
+                💰 Expensify
+              </h1>
+              <p className="text-gray-300 mt-2 text-lg">
+                Track, Analyze, and Master Your Finances
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="glass-light px-4 py-2 rounded-full">
+                <span className="text-sm text-gray-300">
+                  {format(new Date(), 'MMMM yyyy')}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Budget Card */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slide-in">
           <BudgetCard
             currentMonth={currentMonth}
             onMonthChange={setCurrentMonth}
@@ -117,12 +135,12 @@ export default function Home() {
         </div>
 
         {/* Analytics Dashboard */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slide-in" style={{animationDelay: '0.1s'}}>
           <Analytics currentMonth={currentMonth} />
         </div>
 
         {/* Add/Edit Expense Form */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slide-in" style={{animationDelay: '0.2s'}}>
           <ExpenseForm
             expense={editingExpense}
             onSuccess={handleExpenseAdded}
@@ -131,23 +149,30 @@ export default function Home() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6">
+        <div className="mb-6 animate-slide-in" style={{animationDelay: '0.3s'}}>
           <Filters filters={filters} onFilterChange={setFilters} />
         </div>
 
         {/* Expense List */}
-        <ExpenseList
-          expenses={filteredExpenses}
-          loading={loading}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        <div className="animate-slide-in" style={{animationDelay: '0.4s'}}>
+          <ExpenseList
+            expenses={filteredExpenses}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-white mt-12 py-6 border-t">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>© 2026 Expensify - Your Personal Finance Manager</p>
+      <footer className="glass mt-12 py-6 relative z-10">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-gray-400">
+            © 2026 <span className="text-gradient font-semibold">Expensify</span> - Your Personal Finance Manager
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            Built with 💜 for better financial freedom
+          </p>
         </div>
       </footer>
     </main>
