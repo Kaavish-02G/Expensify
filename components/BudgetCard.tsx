@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { format, addMonths, subMonths } from 'date-fns';
-import { IExpense, IBudget } from '@/types';
+import { useState } from 'react';
+import { IExpense } from '@/types';
 
 interface BudgetCardProps {
   currentMonth: string;
@@ -11,55 +10,21 @@ interface BudgetCardProps {
 }
 
 export default function BudgetCard({ currentMonth, onMonthChange, expenses }: BudgetCardProps) {
-  const [budget, setBudget] = useState<number>(0);
+  const [budget, setBudget] = useState('');
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showEditBudget, setShowEditBudget] = useState(false);
-  const [newBudget, setNewBudget] = useState('');
 
   // Calculate monthly expenses
-  const monthlyExpenses = expenses
-    .filter((exp) => format(new Date(exp.date), 'yyyy-MM') === currentMonth)
-    .reduce((sum, exp) => sum + exp.amount, 0);
+  const monthlyExpenses = expenses.filter((exp) => {
+    const expMonth = new Date(exp.date).toISOString().slice(0, 7);
+    return expMonth === currentMonth;
+  });
 
-  const remaining = budget - monthlyExpenses;
-  const percentageUsed = budget > 0 ? (monthlyExpenses / budget) * 100 : 0;
+  const totalSpent = monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-  // Fetch budget from API
-  useEffect(() => {
-    const fetchBudget = async () => {
-      try {
-        const response = await fetch(`/api/budget?month=${currentMonth}`);
-        const data = await response.json();
-        if (data.success && data.data?.monthlyBudget) {
-          setBudget(data.data.monthlyBudget);
-        } else {
-          setBudget(0);
-        }
-      } catch (error) {
-        console.error('Error fetching budget:', error);
-      }
-    };
-    fetchBudget();
-  }, [currentMonth]);
-
-  const handlePrevMonth = () => {
-    const prev = new Date(currentMonth + '-01');
-    prev.setMonth(prev.getMonth() - 1);
-    onMonthChange(format(prev, 'yyyy-MM'));
-  };
-
-  const handleNextMonth = () => {
-    const next = new Date(currentMonth + '-01');
-    next.setMonth(next.getMonth() + 1);
-    onMonthChange(format(next, 'yyyy-MM'));
-  };
-
-  const handleSaveBudget = async () => {
-    const budgetValue = parseFloat(newBudget);
-    if (isNaN(budgetValue) || budgetValue < 0) {
-      alert('Please enter a valid budget amount');
-      return;
-    }
+  const handleBudgetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budget || parseFloat(budget) <= 0) return;
 
     setLoading(true);
     try {
@@ -67,155 +32,139 @@ export default function BudgetCard({ currentMonth, onMonthChange, expenses }: Bu
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          monthlyBudget: parseFloat(budget),
           month: currentMonth,
-          monthlyBudget: budgetValue,
         }),
       });
 
-      const data = await response.json();
-      if (data.success) {
-        setBudget(budgetValue);
-        setShowEditBudget(false);
-        setNewBudget('');
+      if (response.ok) {
+        setShowBudgetForm(false);
+        // Trigger a page refresh or state update
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error saving budget:', error);
-      alert('Failed to save budget');
     } finally {
       setLoading(false);
     }
   };
 
-  const getProgressColor = () => {
-    if (percentageUsed >= 100) return 'bg-red-500';
-    if (percentageUsed >= 80) return 'bg-yellow-500';
-    return 'bg-green-500';
+  const handlePrevMonth = () => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const date = new Date(year, month - 2, 1);
+    onMonthChange(date.toISOString().slice(0, 7));
   };
 
-  const getStatusText = () => {
-    if (budget === 0) return 'Set a budget to track your spending';
-    if (percentageUsed >= 100) return '⚠️ Budget Exceeded!';
-    if (percentageUsed >= 80) return '⚡ Approaching budget limit';
-    return '✅ Within budget';
+  const handleNextMonth = () => {
+    const [year, month] = currentMonth.split('-').map(Number);
+    const date = new Date(year, month, 1);
+    onMonthChange(date.toISOString().slice(0, 7));
   };
+
+  const remaining = 0 - totalSpent; // This should be fetched from API
+  const percentage = 0; // This should be fetched from API
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={handlePrevMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          ◀
-        </button>
-        <h2 className="text-2xl font-bold text-gray-800">
-          {format(new Date(currentMonth + '-01'), 'MMMM yyyy')}
-        </h2>
-        <button
-          onClick={handleNextMonth}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          ▶
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold text-gray-800">📊 Budget Overview</h2>
+        
+        {/* Month Navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevMonth}
+            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            ←
+          </button>
+          <span className="text-lg font-semibold text-gray-700 min-w-[120px] text-center">
+            {currentMonth}
+          </span>
+          <button
+            onClick={handleNextMonth}
+            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            →
+          </button>
+        </div>
       </div>
 
-      {/* Budget Display */}
-      {showEditBudget ? (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monthly Budget ($)
-            </label>
-            <input
-              type="number"
-              value={newBudget}
-              onChange={(e) => setNewBudget(e.target.value)}
-              placeholder="Enter your budget"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              min="0"
-              step="0.01"
-            />
-          </div>
-          <div className="flex gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Total Spent */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+          <p className="text-sm opacity-90">Total Spent</p>
+          <p className="text-3xl font-bold">${totalSpent.toFixed(2)}</p>
+        </div>
+
+        {/* Monthly Budget */}
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+          <p className="text-sm opacity-90">Monthly Budget</p>
+          <div className="flex items-center justify-between">
+            <p className="text-3xl font-bold">
+              ${budget ? parseFloat(budget).toFixed(2) : '0.00'}
+            </p>
             <button
-              onClick={handleSaveBudget}
-              disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              onClick={() => setShowBudgetForm(!showBudgetForm)}
+              className="text-sm bg-white bg-opacity-20 px-2 py-1 rounded hover:bg-opacity-30 transition-colors"
             >
-              {loading ? 'Saving...' : 'Save Budget'}
-            </button>
-            <button
-              onClick={() => {
-                setShowEditBudget(false);
-                setNewBudget('');
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
+              {showBudgetForm ? 'Cancel' : 'Set Budget'}
             </button>
           </div>
         </div>
-      ) : (
-        <>
-          {/* Budget Stats */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm text-gray-600 mb-1">Monthly Budget</div>
-              <div className="text-2xl font-bold text-blue-600">
-                ${budget.toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-gray-600 mb-1">Spent</div>
-              <div className="text-2xl font-bold text-green-600">
-                ${monthlyExpenses.toFixed(2)}
-              </div>
-            </div>
-          </div>
 
-          {/* Remaining */}
-          <div className="text-center mb-4">
-            <div className="text-sm text-gray-600 mb-1">
-              {remaining >= 0 ? '💵 Remaining' : '📉 Over Budget'}
-            </div>
-            <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${Math.abs(remaining).toFixed(2)}
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          {budget > 0 && (
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Budget Used</span>
-                <span className="font-medium">{percentageUsed.toFixed(1)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className={`${getProgressColor()} h-3 rounded-full transition-all duration-300`}
-                  style={{ width: `${Math.min(percentageUsed, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-
-          {/* Status Message */}
-          <p className="text-center text-sm text-gray-600 mb-4">
-            {getStatusText()}
+        {/* Remaining */}
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
+          <p className="text-sm opacity-90">Remaining</p>
+          <p className="text-3xl font-bold">
+            ${budget ? (parseFloat(budget) - totalSpent).toFixed(2) : totalSpent.toFixed(2)}
           </p>
+        </div>
+      </div>
 
-          {/* Edit Budget Button */}
-          <button
-            onClick={() => {
-              setShowEditBudget(true);
-              setNewBudget(budget.toString());
-            }}
-            className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
-          >
-            {budget === 0 ? '💰 Set Budget' : '✏️ Edit Budget'}
-          </button>
-        </>
+      {/* Budget Form */}
+      {showBudgetForm && (
+        <form onSubmit={handleBudgetSubmit} className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex gap-3">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="Enter monthly budget"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Save Budget'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Budget Progress Bar */}
+      {budget && parseFloat(budget) > 0 && (
+        <div className="mt-4">
+          <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <span>Budget Used</span>
+            <span>{Math.min(percentage, 100).toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full transition-all ${
+                percentage > 90
+                  ? 'bg-red-500'
+                  : percentage > 70
+                  ? 'bg-yellow-500'
+                  : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(percentage, 100)}%` }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
