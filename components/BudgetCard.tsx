@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format, parse } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 import { IExpense, IBudget } from '@/types';
 
 interface BudgetCardProps {
@@ -11,219 +11,210 @@ interface BudgetCardProps {
 }
 
 export default function BudgetCard({ currentMonth, onMonthChange, expenses }: BudgetCardProps) {
-  const [budget, setBudget] = useState<IBudget | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [budget, setBudget] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [showEditBudget, setShowEditBudget] = useState(false);
+  const [newBudget, setNewBudget] = useState('');
 
-  // Fetch budget for current month
+  // Calculate monthly expenses
+  const monthlyExpenses = expenses
+    .filter((exp) => format(new Date(exp.date), 'yyyy-MM') === currentMonth)
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  const remaining = budget - monthlyExpenses;
+  const percentageUsed = budget > 0 ? (monthlyExpenses / budget) * 100 : 0;
+
+  // Fetch budget from API
   useEffect(() => {
     const fetchBudget = async () => {
       try {
-        setLoading(true);
         const response = await fetch(`/api/budget?month=${currentMonth}`);
         const data = await response.json();
-        
-        if (data.success && data.data) {
-          setBudget(data.data);
-          setBudgetAmount(data.data.monthlyBudget.toString());
+        if (data.success && data.data?.monthlyBudget) {
+          setBudget(data.data.monthlyBudget);
         } else {
-          setBudget(null);
-          setBudgetAmount('');
+          setBudget(0);
         }
-      } catch (err) {
-        console.error('Error fetching budget:', err);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching budget:', error);
       }
     };
-
     fetchBudget();
   }, [currentMonth]);
 
-  // Calculate expenses for current month
-  const monthExpenses = expenses.filter((exp) => {
-    const expenseMonth = format(new Date(exp.date), 'yyyy-MM');
-    return expenseMonth === currentMonth;
-  });
-
-  const totalSpent = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const monthlyBudget = budget?.monthlyBudget || 0;
-  const remaining = monthlyBudget - totalSpent;
-  const percentageUsed = monthlyBudget > 0 ? (totalSpent / monthlyBudget) * 100 : 0;
-
-  // Navigate months
-  const goToPreviousMonth = () => {
-    const date = parse(currentMonth, 'yyyy-MM', new Date());
-    date.setMonth(date.getMonth() - 1);
-    onMonthChange(format(date, 'yyyy-MM'));
+  const handlePrevMonth = () => {
+    const prev = new Date(currentMonth + '-01');
+    prev.setMonth(prev.getMonth() - 1);
+    onMonthChange(format(prev, 'yyyy-MM'));
   };
 
-  const goToNextMonth = () => {
-    const date = parse(currentMonth, 'yyyy-MM', new Date());
-    date.setMonth(date.getMonth() + 1);
-    onMonthChange(format(date, 'yyyy-MM'));
+  const handleNextMonth = () => {
+    const next = new Date(currentMonth + '-01');
+    next.setMonth(next.getMonth() + 1);
+    onMonthChange(format(next, 'yyyy-MM'));
   };
 
-  const goToCurrentMonth = () => {
-    onMonthChange(format(new Date(), 'yyyy-MM'));
-  };
-
-  // Save budget
-  const handleSaveBudget = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!budgetAmount || parseFloat(budgetAmount) <= 0) {
+  const handleSaveBudget = async () => {
+    const budgetValue = parseFloat(newBudget);
+    if (isNaN(budgetValue) || budgetValue < 0) {
+      alert('Please enter a valid budget amount');
       return;
     }
 
+    setLoading(true);
     try {
-      setSaving(true);
       const response = await fetch('/api/budget', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           month: currentMonth,
-          monthlyBudget: parseFloat(budgetAmount),
+          monthlyBudget: budgetValue,
         }),
       });
 
       const data = await response.json();
-      
       if (data.success) {
-        setBudget(data.data);
-        setShowForm(false);
+        setBudget(budgetValue);
+        setShowEditBudget(false);
+        setNewBudget('');
       }
-    } catch (err) {
-      console.error('Error saving budget:', err);
+    } catch (error) {
+      console.error('Error saving budget:', error);
+      alert('Failed to save budget');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const monthName = format(parse(currentMonth, 'yyyy-MM', new Date()), 'MMMM yyyy');
+  const getProgressColor = () => {
+    if (percentageUsed >= 100) return 'bg-red-500';
+    if (percentageUsed >= 80) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const getStatusText = () => {
+    if (budget === 0) return 'Set a budget to track your spending';
+    if (percentageUsed >= 100) return '⚠️ Budget Exceeded!';
+    if (percentageUsed >= 80) return '⚡ Approaching budget limit';
+    return '✅ Within budget';
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-6">
         <button
-          onClick={goToPreviousMonth}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          onClick={handlePrevMonth}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           ◀
         </button>
-        
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800">{monthName}</h2>
-          {currentMonth !== format(new Date(), 'yyyy-MM') && (
-            <button
-              onClick={goToCurrentMonth}
-              className="text-sm text-blue-600 hover:text-blue-800 mt-1"
-            >
-              Go to current month
-            </button>
-          )}
-        </div>
-        
+        <h2 className="text-2xl font-bold text-gray-800">
+          {format(new Date(currentMonth + '-01'), 'MMMM yyyy')}
+        </h2>
         <button
-          onClick={goToNextMonth}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          onClick={handleNextMonth}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           ▶
         </button>
       </div>
 
-      {/* Budget Status */}
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+      {/* Budget Display */}
+      {showEditBudget ? (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Monthly Budget ($)
+            </label>
+            <input
+              type="number"
+              value={newBudget}
+              onChange={(e) => setNewBudget(e.target.value)}
+              placeholder="Enter your budget"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              min="0"
+              step="0.01"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveBudget}
+              disabled={loading}
+              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Save Budget'}
+            </button>
+            <button
+              onClick={() => {
+                setShowEditBudget(false);
+                setNewBudget('');
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       ) : (
         <>
-          {/* Budget Amount Display */}
-          <div className="text-center mb-6">
-            {monthlyBudget > 0 ? (
-              <>
-                <p className="text-gray-600 text-sm mb-1">Monthly Budget</p>
-                <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                  ${monthlyBudget.toFixed(2)}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-500">No budget set for this month</p>
-            )}
+          {/* Budget Stats */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-sm text-gray-600 mb-1">Monthly Budget</div>
+              <div className="text-2xl font-bold text-blue-600">
+                ${budget.toFixed(2)}
+              </div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-sm text-gray-600 mb-1">Spent</div>
+              <div className="text-2xl font-bold text-green-600">
+                ${monthlyExpenses.toFixed(2)}
+              </div>
+            </div>
           </div>
 
-          {/* Budget Progress */}
-          {monthlyBudget > 0 && (
-            <div className="mb-6">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600">Spent: <strong className="text-gray-900">${totalSpent.toFixed(2)}</strong></span>
-                <span className={`font-semibold ${remaining < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                  {remaining >= 0 ? `$${remaining.toFixed(2)} left` : `$${Math.abs(remaining).toFixed(2)} over`}
-                </span>
+          {/* Remaining */}
+          <div className="text-center mb-4">
+            <div className="text-sm text-gray-600 mb-1">
+              {remaining >= 0 ? '💵 Remaining' : '📉 Over Budget'}
+            </div>
+            <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ${Math.abs(remaining).toFixed(2)}
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          {budget > 0 && (
+            <div className="mb-4">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600">Budget Used</span>
+                <span className="font-medium">{percentageUsed.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className={`h-3 rounded-full transition-all ${
-                    percentageUsed > 100
-                      ? 'bg-red-500'
-                      : percentageUsed > 80
-                      ? 'bg-orange-500'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                  }`}
+                  className={`${getProgressColor()} h-3 rounded-full transition-all duration-300`}
                   style={{ width: `${Math.min(percentageUsed, 100)}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                {percentageUsed.toFixed(1)}% of budget used
-              </p>
             </div>
           )}
 
-          {/* Set/Edit Budget Button */}
-          <div className="text-center">
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              {monthlyBudget > 0 ? '✏️ Edit Budget' : '💰 Set Budget'}
-            </button>
-          </div>
+          {/* Status Message */}
+          <p className="text-center text-sm text-gray-600 mb-4">
+            {getStatusText()}
+          </p>
 
-          {/* Budget Form */}
-          {showForm && (
-            <form onSubmit={handleSaveBudget} className="mt-4 pt-4 border-t">
-              <div className="flex gap-3">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={budgetAmount}
-                  onChange={(e) => setBudgetAmount(e.target.value)}
-                  placeholder="Enter budget amount"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+          {/* Edit Budget Button */}
+          <button
+            onClick={() => {
+              setShowEditBudget(true);
+              setNewBudget(budget.toString());
+            }}
+            className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          >
+            {budget === 0 ? '💰 Set Budget' : '✏️ Edit Budget'}
+          </button>
         </>
       )}
     </div>
