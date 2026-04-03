@@ -47,5 +47,5 @@ Contributions are welcome! Feel free to fork the repo and submit a pull request.
 
 **Kaavish Gogia**<br>
 GitHub: https://github.com/Kaavish-02G<br>
-Website Link:https://expensify-jc58ii8ah-kaavish-02gs-projects.vercel.app
+Website Link:https://expensify-mauve.vercel.app/
 
